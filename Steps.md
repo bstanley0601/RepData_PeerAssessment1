@@ -1,21 +1,30 @@
 # Reproducible Research: Peer Assessment 1
 
+```r
+library(data.table, warn.conflicts=FALSE)
+library(plyr, warn.conflicts=FALSE)
+library(dplyr, warn.conflicts=FALSE)
+library(lattice)
+```
 
 ## Loading and preprocessing the data
 
 ```r
+#if the zip file is not present, download, unzip and load to the activityDF data frame
 if (!file.exists("activity.zip")) {
   download.file(url="http://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip", 
                 destfile="activity.zip")
   unzip("activity.zip", junkpaths=TRUE, overwrite=TRUE)
   activityDF<-fread("activity.csv")
 }
+#if the activityDF data frame does not exist, read the activity file into the data frame
 if(!exists("activityDF")) {
   activityDF<-fread("activity.csv")
 }
 ```
 
 ## What is mean total number of steps taken per day?
+1. Make a histogram of the total number of steps taken each day.
 
 ```r
 stepsByDay<-activityDF %>% filter(complete.cases(activityDF)) %>%
@@ -32,17 +41,31 @@ hist(stepsByDay$steps,
 ```
 
 ![](Steps_files/figure-html/hist_steps_per_day-1.png) 
-
+2. Calculate and report the mean and median total steps taken per day. 
+a) Mean Steps Per Day
 
 ```r
 meanSteps<-mean(stepsByDay$steps)
-medianSteps<-median(stepsByDay$steps)
+meanSteps
 ```
 
-**The mean steps per day is 1.0766\times 10^{4} and the median is 1.0765\times 10^{4}. **  
+```
+## [1] 10766.19
+```
+b) Median Steps Per Day
 
+```r
+medianSteps<-median(stepsByDay$steps)
+medianSteps
+```
+
+```
+## [1] 10765
+```
 
 ## What is the average daily activity pattern?
+1. Make a time series plot (i.e. type = "l") of the 5-minute interval (x-axis) 
+   and the average number of steps taken, averaged across all days (y-axis).
 
 ```r
 stepsByInterval<-activityDF %>% filter(complete.cases(activityDF)) %>%
@@ -59,10 +82,17 @@ plot(stepsByInterval$interval, stepsByInterval$avgSteps,
 ```
 
 ![](Steps_files/figure-html/plot_steps_by_interval-1.png) 
-
+2. Which 5-minute interval, on average across all the days in the dataset, 
+   contains the maximum number of steps?
 
 ```r
 mInterval<-stepsByInterval %>% arrange(desc(avgSteps)) %>% head(1)
+mInterval
+```
+
+```
+##   interval avgSteps
+## 1      835 206.1698
 ```
 **The 835 interval has the highest average steps at 206.1698113.**
 
@@ -79,10 +109,12 @@ nbrIncomplete
 ```
 **The number of incomplete records is 2304. **
 
-2. Devise a strategy for filling in all of the missing values in the dataset. 
-    a) Are there missing days? 
+2. Devise a strategy for filling in all of the missing values in the dataset.   
+   I've found that all of the incomplete cases are due to missing values in the steps column.  
+   Therefore, I've chosen to replace the NAs in steps wiht the mean for the interval across all days.   
     
     ```r
+        #Are there missing days? 
         dayDiff <- ceiling(max(as.POSIXct(activityDF$date)) - min(as.POSIXct(activityDF$date)))
         dayCount <- (apply(activityDF, 2, function(x)length(unique(x))))[2]
         dayDiff - dayCount
@@ -91,10 +123,9 @@ nbrIncomplete
     ```
     ## Time difference of 0 days
     ```
-       *There are no missing days.*
-    b) Are there days with missing intervals?
     
     ```r
+        #Are there days with missing intervals? 
         intervalByDate <- activityDF %>% ddply(.(date), summarize, intervals=length(interval))
         intervalCount <- (apply(activityDF, 2, function(x)length(unique(x))))[3]
         intervalByDate %>% filter(intervals != intervalCount)
@@ -104,10 +135,9 @@ nbrIncomplete
     ## [1] date      intervals
     ## <0 rows> (or 0-length row.names)
     ```
-        *There are no missing intervals.*
-    c) Are all of the incomplete cases due to NA values in the steps column? 
     
     ```r
+        #Are all of the incomplete cases due to NA values in the steps column? 
         nrow(filter(activityDF, is.na(steps)))
     ```
     
@@ -123,39 +153,52 @@ nbrIncomplete
     ```
     ## [1] 0
     ```
-        *All incompletes are NA steps.*
-    d) Based on the info from a,b, and c, I am choosing to replace NAs in steps with mean for the
-       interval. 
+
 3. Create a new dataset that is equal to the original dataset 
    but with the missing data filled in.
-    
-    ```r
-        imputedDF<-transform(activityDF, steps=ifelse(is.na(activityDF$steps), stepsByInterval$avgSteps[match(activityDF$interval, stepsByInterval$interval)], activityDF$steps))
-      #      imputedDF<-transform(imputedDF, steps=ifelse(date="2012-10-01", 0, steps))
-    ```
-4. a) Make a histogram of the total number of steps taken each day 
-   and Calculate and report the mean and median total number of steps taken per day. 
-   
 
 ```r
-    impStepsByDay<-imputedDF %>% ddply(.(date), summarize, steps=sum(steps))
-    impMeanSteps<-mean(impStepsByDay$steps)
-    impMedianSteps<-median(impStepsByDay$steps)
+#if steps is missing, replace with avgSteps for the interval, else keep the value in steps
+#store result in a new data frame
+imputedDF<-transform(activityDF, steps=ifelse(is.na(activityDF$steps), stepsByInterval$avgSteps[match(activityDF$interval, stepsByInterval$interval)], activityDF$steps))
+```
+4. a) Make a histogram of the total number of steps taken each day 
+
+```r
+impStepsByDay<-imputedDF %>% ddply(.(date), summarize, steps=sum(steps))
 ```
     
 
 ```r
-    hist(impStepsByDay$steps, 
-        main="Number of Steps from Imputed Data",
-        breaks=20,
-        col="lightgreen",
-        xlab="Total Number of Steps Taken Daily")
+hist(impStepsByDay$steps, 
+    main="Number of Steps from Imputed Data",
+    breaks=20,
+    col="lightgreen",
+    xlab="Total Number of Steps Taken Daily")
 ```
 
 ![](Steps_files/figure-html/hist_imputed_steps_per_day-1.png) 
+   
+   b) Calculate and report the mean total number of steps taken per day.  
 
-   **With imputed data, the mean steps per day is 1.0766189\times 10^{4}**  
-   **and the median is 1.0766189\times 10^{4}.**
+```r
+impMeanSteps<-mean(impStepsByDay$steps)
+impMeanSteps
+```
+
+```
+## [1] 10766.19
+```
+   c) Calculate and report the median total number of steps taken per day.  
+
+```r
+impMedianSteps<-median(impStepsByDay$steps)
+impMedianSteps
+```
+
+```
+## [1] 10766.19
+```
    
    b) Do these values differ from the estimates from the first part of the assignment? 
    What is the impact of imputing missing data on the estimates 
@@ -174,16 +217,21 @@ nbrIncomplete
 ## Are there differences in activity patterns between weekdays and weekends?
 
 ```r
+#add a column indicating weekend or weekday
 imputedDF$weekend<-ifelse(as.POSIXlt(imputedDF$date)$wday == c(0,6), "WEEKEND",  "WEEKDAY")
+#calculate total steps for each 5-minute interval over weekend/weekday
 stepsByWeekend<-ddply(imputedDF, .(interval,weekend), summarize, steps=sum(steps))
-avgStepsByWeekend<-ddply(imputedDF, .(interval,weekend), summarize, avgSteps=mean(steps))
 ```
 
 ```r
-qplot(interval, steps, data=stepsByWeekend, 
-      group=weekend, color=weekend, geom=c("point","line"),
-      xlab="5-minute Interval", ylab="Total Steps", 
-      main="Comparison of Weekend and Weekday Activity")
+xyplot(
+    type="l",
+    data=stepsByWeekend,
+    steps ~ interval | weekend,
+    xlab="5-Minute Interval",
+    ylab="Number of steps",
+    layout=c(1,2)
+)
 ```
 
 ![](Steps_files/figure-html/unnamed-chunk-4-1.png) 
