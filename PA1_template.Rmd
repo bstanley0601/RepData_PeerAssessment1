@@ -27,7 +27,7 @@ if(!exists("activityDF")) {
 ```
 
 ## What is mean total number of steps taken per day?
-1. Make a histogram of the total number of steps taken each day.
+### 1. Make a histogram of the total number of steps taken each day.
 ```{r calculate_steps_per_day}
 stepsByDay<-activityDF %>% filter(complete.cases(activityDF)) %>%
                            ddply(.(date), summarize, steps=sum(steps))
@@ -40,21 +40,21 @@ hist(stepsByDay$steps,
      col="lightgreen",
      xlab="Total Number of Steps Taken Daily")
 ```
-2. Calculate and report the mean and median total steps taken per day. 
-a) Mean Steps Per Day
+
+### 2. Calculate and report the mean and median total steps taken per day. 
+####    a) Mean Steps Per Day
 ```{r calc_mean}
 meanSteps<-mean(stepsByDay$steps)
 meanSteps
 ```
-b) Median Steps Per Day
+####    b) Median Steps Per Day
 ```{r calc_median}
 medianSteps<-median(stepsByDay$steps)
 medianSteps
 ```
 
 ## What is the average daily activity pattern?
-1. Make a time series plot (i.e. type = "l") of the 5-minute interval (x-axis) 
-   and the average number of steps taken, averaged across all days (y-axis).
+### 1. Make a time series plot (i.e. type = "l") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis).
 ```{r calculate_steps_by_interval}
 stepsByInterval<-activityDF %>% filter(complete.cases(activityDF)) %>%
                            ddply(.(interval), summarize, avgSteps=mean(steps))
@@ -67,23 +67,24 @@ plot(stepsByInterval$interval, stepsByInterval$avgSteps,
      ylab="Number of Steps",
      main="Average Number of Steps Across All Days")
 ```
-2. Which 5-minute interval, on average across all the days in the dataset, 
-   contains the maximum number of steps?
+
+### 2. Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
 ```{r calc_interval_with_most_highest_avg_steps}
 mInterval<-stepsByInterval %>% arrange(desc(avgSteps)) %>% head(1)
 mInterval
 ```
-**The `r mInterval[,1]` interval has the highest average steps at `r mInterval[,2]`.**
+#### **The `r mInterval[,1]` interval has the highest average steps at `r mInterval[,2]`.**
 
 ## Imputing missing values
-1.Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with NAs)
+### 1.Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with NAs)
+
 ```{r evaluate_incomplete_data}
 nbrIncomplete<-nrow(activityDF) - nrow(filter(activityDF,complete.cases(activityDF)))
 nbrIncomplete
 ```
-**The number of incomplete records is `r nbrIncomplete`. **
+#### **The number of incomplete records is `r nbrIncomplete`. **
 
-2. Devise a strategy for filling in all of the missing values in the dataset.   
+### 2. Devise a strategy for filling in all of the missing values in the dataset.   
    I've found that all of the incomplete cases are due to missing values in the steps column.  
    Therefore, I've chosen to replace the NAs in steps wiht the mean for the interval across all days.   
     ```{r find.missing.days}
@@ -105,14 +106,15 @@ nbrIncomplete
         nbrIncomplete - nbrNAsteps
     ```
 
-3. Create a new dataset that is equal to the original dataset 
-   but with the missing data filled in.
+### 3. Create a new dataset that is equal to the original dataset 
+###    but with the missing data filled in.
 ```{r create_imputedDF}
 #if steps is missing, replace with avgSteps for the interval, else keep the value in steps
 #store result in a new data frame
 imputedDF<-transform(activityDF, steps=ifelse(is.na(activityDF$steps), stepsByInterval$avgSteps[match(activityDF$interval, stepsByInterval$interval)], activityDF$steps))
 ```
-4. a) Make a histogram of the total number of steps taken each day 
+
+### 4. a) Make a histogram of the total number of steps taken each day 
 ```{r calculate_steps_per_day_with_imputed_data}
 impStepsByDay<-imputedDF %>% ddply(.(date), summarize, steps=sum(steps))
 ```
@@ -123,46 +125,52 @@ hist(impStepsByDay$steps,
     breaks=20,
     col="lightgreen",
     xlab="Total Number of Steps Taken Daily")
-```
-   
-   b) Calculate and report the mean total number of steps taken per day.  
+```  
+
+###   b) Calculate and report the mean total number of steps taken per day.  
 ```{r calc_imputed_mean_steps_by_day}
 impMeanSteps<-mean(impStepsByDay$steps)
 impMeanSteps
 ```
-   c) Calculate and report the median total number of steps taken per day.  
+
+###   c) Calculate and report the median total number of steps taken per day.  
 ```{r calc_imputed_median_steps_by_day}
 impMedianSteps<-median(impStepsByDay$steps)
 impMedianSteps
 ```
    
-   b) Do these values differ from the estimates from the first part of the assignment? 
-   What is the impact of imputing missing data on the estimates 
-   of the total daily number of steps?
+###   d) Do these values differ from the estimates from the first part of the assignment? 
+###   What is the impact of imputing missing data on the estimates 
+###   of the total daily number of steps?
    
 ```{r}
     meanDiff<-meanSteps - impMeanSteps
     medianDiff<-medianSteps - impMedianSteps
 ```
    
-   **The mean decreased by `r meanDiff` in the imputed data set.**  
-   **The median decreased by `r medianDiff` in the imputed data set.**
+####   **The mean decreased by `r meanDiff` in the imputed data set.**  
+####   **The median decreased by `r medianDiff` in the imputed data set.**
 
    
 ## Are there differences in activity patterns between weekdays and weekends?
+### 1.Create a new factor variable in the dataset with two levels -- "weekday" and "weekend" indicating whether a given date is a weekday or weekend day.
 ```{r}
-#add a column indicating weekend or weekday
+#add a column indicating weekend or weekday, 
+#The wday component of a POSIXlt object is the numeric weekday (0-6 starting on Sunday).
 imputedDF$weekend<-ifelse(as.POSIXlt(imputedDF$date)$wday == c(0,6), "WEEKEND",  "WEEKDAY")
-#calculate total steps for each 5-minute interval over weekend/weekday
-stepsByWeekend<-ddply(imputedDF, .(interval,weekend), summarize, steps=sum(steps))
 ```
+
+### 2. Make a panel plot containing a time series plot (i.e. type = "l") of the 5-minute interval (x-axis) and the average number of steps taken, *averaged* across all weekday days or weekend days (y-axis). 
 ```{r}
+#calculate average and total steps for each 5-minute interval over weekend/weekday
+stepsByWeekend<-ddply(imputedDF, .(interval,weekend), summarize, avgSteps=mean(steps), sumSteps=sum(steps))
+#plot weekend and weekday average steps 
 xyplot(
     type="l",
     data=stepsByWeekend,
-    steps ~ interval | weekend,
+    avgSteps ~ interval | weekend,
     xlab="5-Minute Interval",
-    ylab="Number of steps",
+    ylab="Average Number of steps",
     layout=c(1,2)
 )
 ```
